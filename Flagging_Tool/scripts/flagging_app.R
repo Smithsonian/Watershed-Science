@@ -19,8 +19,7 @@ ui <- fluidPage(
     numericInput("timestamp_column", "Timestamp Column Index:", 1, min = 1),
     numericInput("sitename_column", "Site Name Column Index:", 2, min = 1),
     selectInput("timeformat", "Timestamp Format (strptime):", choices = c("%Y-%m-%d %H:%M:%S", "%m/%d/%Y  %H:%M", "%m/%d/%Y  %H:%M:%S %p")),
-    textInput("exclude", "Columns to Exclude (separated by commas eg. 1,5,10):", value = "", width = NULL, placeholder = NULL),
-    #set values for rolling average tidying
+     #set values for rolling average tidying
     h4("Enter values to determine outliers!"),
     p("if you want an aggressive smooth, increase the rolling average window & decrease the standard deviation cut off."),
     numericInput("window", "rolling average window:", 30, min = 10),
@@ -100,17 +99,26 @@ server <- function(input, output, session) {
     df <- df %>%
       relocate(SiteName)%>%
       relocate(TIMESTAMP)
-    excols <- as.numeric(unlist(strsplit(input$exclude,",")))
-    browser() 
-    df <- subset(df, select = -(excols+2))
-    df$TIMESTAMP <- as.POSIXct(df$TIMESTAMP, tryFormats=c("%Y-%m-%d %H:%M:%S", "%m/%d/%Y  %H:%M", "%m/%d/%Y  %H:%M:%S %p")) #add more try formats so this is less likely to tweak
+
+    df$TIMESTAMP <- as.POSIXct(df$TIMESTAMP, format = timeformat) #add more try formats so this is less likely to tweak
     df$RowID <- seq.int(nrow(df))
     params <- setdiff(names(df), c("RowID","TIMESTAMP", "SiteName"))
     values$params <- params
     #cycle through parameters, make sure theyre numeric 
+    rms=F
+    rms_names = c()
     for(p in params) {
       df[[p]] <- as.numeric(as.character(df[[p]]))
+       if (all(is.na(df[[p]]))){
+         rms=T
+         rms_names = c(rms_names,  p)
+       }    
     }
+  
+    values$params <- params[!params %in% rms_names]
+    params <- values$params
+    df <- df %>% select(-all_of(rms_names))
+
     #hold the file data in reactive val
     values$data <- df
     
@@ -119,7 +127,6 @@ server <- function(input, output, session) {
       df[[paste0(p, "_flag")]] <- NA
     }
     values$flagged <- df
-    browser()
     #range sliders
     for(p in params) {
       min_val <- min(df[[p]], na.rm = TRUE)
@@ -130,6 +137,8 @@ server <- function(input, output, session) {
         ui = sliderInput(
             inputId = paste0("slider_", p),
             label = paste("Range for", p),
+                        # min = ifelse(is.finite(min_val), min_val, 0), 
+                        # max = ifelse(is.finite(max_val), max_val, 0), 
             min = min_val,
             max = max_val,
             value = c(min_val, max_val),
@@ -145,7 +154,6 @@ server <- function(input, output, session) {
     window <- input$window
     sds <- input$sds
     df <- values$flagged
-    
     for(p in values$params) {
       range_id <- paste0("slider_", p)
         range <- input[[range_id]]
