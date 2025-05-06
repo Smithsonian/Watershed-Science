@@ -1,0 +1,291 @@
+---
+title: "Anything_WEIRd?"
+author: "Lydia LaGorga"
+date: "`r Sys.Date()`"
+output: html_document
+---
+<style>
+.vscroll-plot {
+    width: 1000px;
+    height: 600px;
+    overflow-y: scroll;
+    overflow-x: hidden;
+}
+</style>
+``` {r load libraries, directories, & functions, include = F, warning = FALSE,  message = FALSE}
+# load libraries
+library(tidyverse)
+library(data.table)
+library(zoo)
+library(dplyr)
+library(purrr)
+library(ggplot2)
+library(rlist)
+#define functions
+format_head <- function(file) {
+  # Read the file, skipping the first 4 rows (device info, headers, units, blank row)
+  data <- fread(file,skip=1, header = TRUE)[-c(1,2)] %>%
+  rename_with(~ substr(., 1, nchar(.) - 4))%>%
+  rename(TIMESTAMP = TIMES)
+  return(data)
+}
+
+#set wd
+wd = "S:/WatershedScience/Stream_Program/00_Methods/03_Loggernet/WeirDataWorkflow" # workflow folder on  sdrive
+setwd(wd)
+```
+
+```{r read, combine, and format .dat files for plotting, include = F, warning = FALSE, message=FALSE}
+dbfold <- "C:/Users/lagorgal/Smithsonian Dropbox/Lydia LaGorga/WS_data/current_data/"
+files <- list.files(dbfold,ignore.case = T, pattern = "aquatroll")
+bindlist <- list()
+timerange <- days(7)
+
+#files by site
+#101
+if(sum(grepl("101", files))){
+WS_101 <- paste0(dbfold,files[grepl("101", files)])
+bind101 <- bind_rows(lapply(WS_101, format_head))%>% mutate(SiteName = "W101") %>% 
+  relocate(SiteName)%>%
+  filter(TIMESTAMP>= now("EST")-timerange)
+bindlist <- list.append(bindlist,bind101)
+}
+
+#102
+if(sum(grepl("102", files))){
+WS_102 <- paste0(dbfold,files[grepl("102", files)]) 
+bind102 <- bind_rows(lapply(WS_102, format_head))%>% mutate(SiteName = "W102") %>% 
+  relocate(SiteName) %>%
+  filter(TIMESTAMP>= now("EST")-timerange)
+bindlist <- list.append(bindlist,bind102)
+}
+
+#109
+if(sum(grepl("109", files))){
+WS_109 <- paste0(dbfold,files[grepl("109", files)])
+bind109 <- bind_rows(lapply(WS_109, format_head))%>% mutate(SiteName = "W109") %>% 
+  relocate(SiteName)%>%
+  filter(TIMESTAMP>= now("EST")-timerange)
+bindlist <- list.append(bindlist,bind109)
+}
+
+#110
+if(sum(grepl("110", files))){
+WS_110 <- paste0(dbfold,files[grepl("110", files)])
+bind110 <- bind_rows(lapply(WS_110, format_head))%>% mutate(SiteName = "W110") %>% 
+  relocate(SiteName)%>%
+  filter(TIMESTAMP>= now("EST")-timerange)
+bindlist <- list.append(bindlist,bind110)
+}
+
+#combine
+all_weirs <- reduce(bindlist, full_join)
+all_weirs <- all_weirs %>% 
+  mutate(TIMESTAMP = as.POSIXct(TIMESTAMP, format="%Y-%m-%d %H:%M:%S", tz=Sys.timezone()))%>% 
+  mutate(across(-c(TIMESTAMP,SiteName), as.numeric))
+  
+```
+
+
+``` {r framework for plots, echo = F, warning = FALSE, message=FALSE}
+params <- colnames(all_weirs)
+plotnames <- paste0(params,"_plot", sep = "")
+for (i in 2:length(plotnames)){
+assign(params[i], all_weirs[,c(1,2,..i)])
+}
+```
+
+``` {r generate plots, echo = F, warning = FALSE, message=FALSE}
+  # Create the plot
+for (i in 4:(length(plotnames))){
+  temp <- get(params[i])
+  plot <- temp %>%
+    ggplot() +
+    geom_hline(yintercept = 0, size = .5)+
+    geom_point(aes(x = TIMESTAMP, y = .data[[names(temp)[3]]], color=SiteName), na.rm = TRUE) +
+    facet_wrap(vars(SiteName))+
+    ylim(min(temp[,3], na.rm = TRUE) - 5, max(temp[,3], na.rm = TRUE) + 5) +
+    ggtitle(names(temp)[3]) +
+    theme(legend.title = element_text(size=20)) + 
+    labs(x = "Timestamp", y = params[i]) +
+    theme_light() +
+    theme(
+      axis.title.x = element_text(size = 16, face = "bold"),
+      axis.title.y = element_text(size = 16, face = "bold"),
+      axis.text.x = element_text(size = 14, face = "bold",angle = 45, hjust = 1),
+      axis.text.y = element_text(size = 14, face = "bold"),
+      legend.position = "top"
+    )
+    assign(plotnames[i],plot)
+}
+```
+
+``` {r s::can, echo = F, warning = FALSE, message=FALSE}
+scan <- list.files(dbfold,ignore.case = T, pattern = "fingerprint")
+if(sum(grepl("Fingerprint", scan))){
+fp_path <- paste0(dbfold,scan)
+fp <- bind_rows(lapply(fp_path, fread, skip=3))
+header <- c("timestamp",as.character(seq(200, 722.5, 2.5)))
+fp <- fp[ ,-c(2:11)]
+colnames(fp)<- header
+weeklyfp <- fp %>% mutate(timestamp = as.POSIXct(timestamp)) %>% filter(timestamp >= now("EST")-timerange)
+}
+
+scan200 <- weeklyfp %>%
+    ggplot() +
+    geom_hline(yintercept = 0, size = .5)+
+    geom_point(aes(x = timestamp, y = `200`), colour="#7CAE00", na.rm = TRUE) +
+    ggtitle("200 nm, W102") +
+    theme(legend.title = element_text(size=20)) + 
+    labs(x = "Timestamp", y = "Absorbance") +
+    theme_light() +
+    theme(
+      axis.title.x = element_text(size = 16, face = "bold"),
+      axis.title.y = element_text(size = 16, face = "bold"),
+      axis.text.x = element_text(size = 14, face = "bold",angle = 45, hjust = 1),
+      axis.text.y = element_text(size = 14, face = "bold"),
+      legend.position = "top"
+    )
+
+scan250 <- weeklyfp %>%
+    ggplot() +
+    geom_hline(yintercept = 0, size = .5)+
+    geom_point(aes(x = timestamp, y = `250`), colour="#7CAE00", na.rm = TRUE) +
+    ggtitle("250 nm, W102") +
+    theme(legend.title = element_text(size=20)) + 
+    labs(x = "Timestamp", y = "Absorbance") +
+    theme_light() +
+    theme(
+      axis.title.x = element_text(size = 16, face = "bold"),
+      axis.title.y = element_text(size = 16, face = "bold"),
+      axis.text.x = element_text(size = 14, face = "bold",angle = 45, hjust = 1),
+      axis.text.y = element_text(size = 14, face = "bold"),
+      legend.position = "top"
+    )
+
+scan400 <- weeklyfp %>%
+    ggplot() +
+    geom_hline(yintercept = 0, size = .5)+
+    geom_point(aes(x = timestamp, y = `400`), colour="#7CAE00", na.rm = TRUE) +
+    ggtitle("400 nm, W102") +
+    theme(legend.title = element_text(size=20)) + 
+    labs(x = "Timestamp", y = "Absorbance") +
+    theme_light() +
+    theme(
+      axis.title.x = element_text(size = 16, face = "bold"),
+      axis.title.y = element_text(size = 16, face = "bold"),
+      axis.text.x = element_text(size = 14, face = "bold",angle = 45, hjust = 1),
+      axis.text.y = element_text(size = 14, face = "bold"),
+      legend.position = "top"
+    )
+
+```
+
+``` {r stage!, echo = F, warning = F, message=FALSE}
+files <- list.files(dbfold,ignore.case = T, pattern = "stage")[c(-2)]
+bindlist <- list()
+timerange <- days(7)
+#files by site
+#101
+if(sum(grepl("101", files))){
+WS_101 <- paste0(dbfold,files[grepl("101", files)]) 
+bind101 <- fread(WS_101,skip=1, header = TRUE)[-c(1,2)] %>% 
+  mutate(SiteName = "W101") %>% 
+  relocate(SiteName) %>%
+  filter(TIMESTAMP>= now("EST")-timerange)
+bindlist <- list.append(bindlist,bind101)
+}
+
+#102
+if(sum(grepl("102", files))){
+WS_102 <- paste0(dbfold,files[grepl("102", files)]) 
+bind102 <- fread(WS_102,skip=1, header = TRUE)[-c(1,2)] %>% 
+  mutate(SiteName = "W102") %>% 
+  relocate(SiteName) %>%
+  filter(TIMESTAMP>= now("EST")-timerange)
+bindlist <- list.append(bindlist,bind102)
+}
+
+#109
+if(sum(grepl("109", files))){
+WS_109 <- paste0(dbfold,files[grepl("109", files)]) 
+bind109 <- fread(WS_109,skip=1, header = TRUE)[-c(1,2)] %>% 
+  mutate(SiteName = "W109") %>% 
+  relocate(SiteName) %>%
+  filter(TIMESTAMP>= now("EST")-timerange)
+bindlist <- list.append(bindlist,bind109)
+}
+
+#combine
+all_weirs <- reduce(bindlist, full_join)
+all_weirs <- all_weirs %>% 
+  mutate(TIMESTAMP = as.POSIXct(TIMESTAMP, format="%Y-%m-%d %H:%M:%S", tz=Sys.timezone()))%>% 
+  mutate(across(-c(TIMESTAMP,SiteName), as.numeric))
+  
+stage <- all_weirs %>%
+    ggplot() +
+    geom_hline(yintercept = 0, size = .5)+
+    geom_point(aes(x = TIMESTAMP, y = Flow, color=SiteName), na.rm = TRUE) +
+    facet_wrap(vars(SiteName))+
+     ggtitle("Flow (cf/s)") +
+    theme(legend.title = element_text(size=20)) + 
+    labs(x = "Timestamp", y = "Flow") +
+    theme_light() +
+    theme(
+      axis.title.x = element_text(size = 16, face = "bold"),
+      axis.title.y = element_text(size = 16, face = "bold"),
+      axis.text.x = element_text(size = 14, face = "bold",angle = 45, hjust = 1),
+      axis.text.y = element_text(size = 14, face = "bold"),
+      legend.position = "top"
+    )
+
+level <- all_weirs %>%
+    ggplot() +
+    geom_hline(yintercept = 0, size = .5)+
+    geom_point(aes(x = TIMESTAMP, y = Lvl_ft_Avg, color=SiteName), na.rm = TRUE) +
+    facet_wrap(vars(SiteName))+
+     ggtitle("Lvl_ft_Avg (ft)") +
+    theme(legend.title = element_text(size=20)) + 
+    labs(x = "Timestamp", y = "Lvl_ft_Avg (ft)") +
+    theme_light() +
+    theme(
+      axis.title.x = element_text(size = 16, face = "bold"),
+      axis.title.y = element_text(size = 16, face = "bold"),
+      axis.text.x = element_text(size = 14, face = "bold",angle = 45, hjust = 1),
+      axis.text.y = element_text(size = 14, face = "bold"),
+      legend.position = "top"
+    )
+
+
+```
+
+``` {r plots!, echo = F, warning = F, message=FALSE}
+# plot the plots
+get(plotnames[4])
+get(plotnames[5])
+get(plotnames[6])
+get(plotnames[7])
+get(plotnames[8])
+get(plotnames[9])
+get(plotnames[10])
+get(plotnames[11])
+get(plotnames[12])
+get(plotnames[13])
+get(plotnames[14])
+get(plotnames[15])
+get(plotnames[16])
+get(plotnames[17])
+get(plotnames[18])
+get(plotnames[19])
+get(plotnames[20])
+get(plotnames[21])
+#stage
+plot(level)
+ plot(stage)
+ 
+#scan200
+scan250
+scan400
+```
+
+
