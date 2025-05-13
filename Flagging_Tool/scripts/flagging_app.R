@@ -323,13 +323,13 @@ server <- function(input, output, session) {
   observeEvent(input$done_flagging, {
     req(values$flagged, input$file)
     df <- values$flagged
+     params <- values$params
+     for(p in params){
     ## commentted out to not remove any values, just keep flags
-    # params <- values$params
-    # for(p in params){
     #   flag_col <- paste0(p, "_flag")
     #   df[[p]] <- ifelse(is.na(df[[flag_col]]) | df[[flag_col]] == "o", df[[p]], "NA")
-    #   df[[p]] <- ifelse(df[[p]] == "NaN", "NA", df[[p]])
-    # }
+    df[[p]] <- ifelse(df[[p]] == "NaN" | is.na(df[[p]]), "NA", df[[p]])
+     }
    values$export <- df[,-c("RowID")]
      #popup
     showModal(modalDialog(
