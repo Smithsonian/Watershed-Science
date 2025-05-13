@@ -4,6 +4,7 @@ library(data.table)
 library(plotly)
 library(DT)
 library(dplyr)
+library(lubridate)
 library(zoo)
 library(shinythemes)
 library(bslib)
@@ -11,19 +12,12 @@ library(RColorBrewer)
 
 #arranging & laying out
 ui <- fluidPage(
-  theme = bs_theme(version = 5, bootswatch = "morph") , #journal, sketchy, minty
+  theme = bs_theme(version = 5, bootswatch = "morph"), #journal, sketchy, minty, morph
   titlePanel("flag on the play"),
   #upload
   wellPanel(
-    h3("provide some info then upload your file!"),
-    numericInput("timestamp_column", "Timestamp Column Index:", 1, min = 1),
-    numericInput("sitename_column", "Site Name Column Index:", 2, min = 1),
-    selectInput("timeformat", "Timestamp Format (strptime):", choices = c("%Y-%m-%d %H:%M:%S", "%m/%d/%Y  %H:%M", "%m/%d/%Y  %H:%M:%S %p")),
-     #set values for rolling average tidying
-    h4("Enter values to determine outliers!"),
-    p("if you want an aggressive smooth, increase the rolling average window & decrease the standard deviation cut off."),
-    numericInput("window", "rolling average window:", 30, min = 10),
-    numericInput("sds", "standard deviations:", 3, min = 2),
+    actionButton("edit_defaults", "Edit File Defaults", class = "btn-primary"),
+    br(), br(),
     fileInput("file", "upload data", accept = ".csv, .dat, .txt")),
   
   #2 tabs, one for set up second for flagging
@@ -33,9 +27,10 @@ ui <- fluidPage(
                        wellPanel(
                          h3("Parameter Ranges"),
                          p("adjust the reasonable ranges for your parameters,", em("these will determine your Range flags")),
+                         actionButton("apply_ranges", "apply ranges", class = "btn-primary"),
                          div(id = "paramSelectors"),
                          br(),
-                         actionButton("apply_ranges", "apply ranges", class = "btn-primary"))),
+                         )),
               
               #flagging
               tabPanel("flag data", value = "flagging",
@@ -83,6 +78,25 @@ server <- function(input, output, session) {
     ranges_applied = FALSE
   )
   
+  #add default editing into a modal, to clean up the UI
+  observeEvent(input$edit_defaults, {
+    #popup
+    showModal(modalDialog(
+      title = "Edit File Defaults",
+      h5("Provide some info before uploading your file!"),
+      numericInput("timestamp_column", "Timestamp Column Index:", 1, min = 1),
+      numericInput("sitename_column", "Site Name Column Index:", 2, min = 1),
+      selectInput("timeformat", "Timestamp Format (strptime):", choices = c("%Y-%m-%d %H:%M:%S", "%m/%d/%Y  %H:%M", "%m/%d/%Y  %H:%M:%S %p")),
+      h5("Enter values to determine outliers!"),
+      p("if you want an aggressive smooth, increase the rolling average window & decrease the standard deviation cut off."),
+      numericInput("window", "rolling average window:", 30, min = 10),
+      numericInput("sds", "standard deviations:", 3, min = 2),
+      footer = tagList(
+        modalButton("Accept Changes")
+      ),
+      easyClose = TRUE
+    ))
+  })
 #accept file for flagging. can take .csv/.dat/.txt
   observeEvent(input$file, {
     req(input$file)
@@ -337,19 +351,23 @@ server <- function(input, output, session) {
   observeEvent(input$done_flagging, {
     req(values$flagged, input$file)
     df <- values$flagged
-    params <- values$params
-    for(p in params){
-      flag_col <- paste0(p, "_flag")
-      df[[p]] <- ifelse(is.na(df[[flag_col]]) | df[[flag_col]] == "o", df[[p]], "NA")
-      df[[p]] <- ifelse(df[[p]] == "NaN", "NA", df[[p]])
-    }
+    ## commentted out to not remove any values, just keep flags
+    # params <- values$params
+    # for(p in params){
+    #   flag_col <- paste0(p, "_flag")
+    #   df[[p]] <- ifelse(is.na(df[[flag_col]]) | df[[flag_col]] == "o", df[[p]], "NA")
+    #   df[[p]] <- ifelse(df[[p]] == "NaN", "NA", df[[p]])
+    # }
    values$export <- df[,-c("RowID")]
      #popup
     showModal(modalDialog(
       title = "Download Flagged Data",
       "Your flagged data is ready to download.",
+      textInput("user", "Initials:"),
+      textInput("notes", "Flagging Session notes:"),
       footer = tagList(
         downloadButton("download_flagged", "Download CSV"),
+        downloadButton("download_notes", "Download Notes"),
         modalButton("Cancel")
       ),
       easyClose = TRUE
@@ -360,12 +378,27 @@ server <- function(input, output, session) {
     filename = function() {
       #original filename
       base <- tools::file_path_sans_ext(input$file$name)
-      paste0(base, "_flagged.csv")
+      paste0(base, "_flagged_", toupper(input$user), ".csv")
     },
     content = function(file) {
     fwrite(values$export, file)
       }
-    )
+    ) 
+
+  output$download_notes <- downloadHandler(
+    filename = function() {
+      base <- tools::file_path_sans_ext(input$file$name)
+      paste0(base, "_flagged_notes_", toupper(input$user), ".txt")
+    },
+    content = function(file) {
+      base <- tools::file_path_sans_ext(input$file$name)
+      notes <- paste0(" File:", base, "\n Flagged On:", today(), 
+                      "\n Flagged By:", input$user,
+                      "\n Notes:", input$notes)
+      writeLines(notes, file)  # Use writeLines instead of fwrite
+    }
+  )
+  
 }
 
 shinyApp(ui, server)
