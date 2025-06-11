@@ -1,0 +1,172 @@
+---
+title: "Formatting Dropbox Loggernet Data"
+output: html_notebook
+---
+
+*You need dropbox access synced in your desktop's file explorer for this to work. If you don't have access, go find lydia! [(or email me)](mailto:lagorgal@si.edu)*
+
+## Add your name in the following format "First Last" [ex. "Lydia LaGorga"]
+
+```{r}
+myname = "Lydia LaGorga"
+myuser =  Sys.info()["user"]
+
+```
+
+### Run to load libraries, formatting function, and previously unformatted data:
+
+```{r}
+# load libraries
+library(tidyverse)
+library(data.table)
+library(zoo)
+library(dplyr)
+library(purrr)
+library(ggplot2)
+library(rlist)
+library(lubridate)
+library(stringr)
+
+#function to make headers consistent
+format_head <- function(file) {
+  # Read the file, skipping the first 4 rows (device info, headers, units, blank row)
+  if (all(grepl("Aquatroll", file, ignore.case = TRUE))){
+    data <- fread(file,skip=1, header = TRUE, sep = ",")[-c(1,2)]
+  
+    }else if(all(grepl("Stage",file, ignore.case = TRUE))==T){
+      data <- fread(file,skip=1, header = TRUE)[-c(1,2)]
+    }else if(all(grepl("CR10",file, ignore.case = TRUE))==T){
+      headers <- c("StatusCode","Year","JD","MT", "SiteName","WaterLvl","Flow_cfs")
+      data <- read.table(file, fill=T, sep = ",")
+      data <- data[,1:7]
+      colnames(data) <- headers
+      data <- data %>%
+        mutate(time = str_pad(as.character(MT),4, pad = "0")) %>%
+        mutate(TIMESTAMP = as.POSIXct(paste0(Year,"-", JD, " ", time), format = "%Y-%j %H%M"))%>%
+        mutate(TIMESTAMP = as.character(format.POSIXct(TIMESTAMP, format="%Y-%m-%d %H:%M:%S")))%>%
+        select(TIMESTAMP,SiteName,StatusCode,WaterLvl,Flow_cfs)
+        
+      }else if(all(grepl("Fingerprint",file, ignore.case = TRUE))){
+        data <- fread(file,skip=1, header = TRUE)[-c(1,2)]
+        header <- c("TIMESTAMP",paste0("nm",as.character(seq(200, 722.5, 2.5))))
+        data <- data[ ,-c(2:11)]
+        colnames(data)<- header
+        data <- data %>% select(c("TIMESTAMP", "nm200", "nm250", "nm400"))
+     
+     }else{
+        data <- fread(file, header = TRUE)
+     }
+  data <- unique(data)
+  return(data)
+}
+
+#filepath of previously formatted raw files
+raw_loggerdata <- "S:/WatershedScience/Stream_Program/00_Methods/03_Loggernet/WeirDataWorkflow/0_raw_loggerdata/"
+#filepath of dropbox
+dbfold <- paste0("C:/Users/",myuser,"/Smithsonian Dropbox/", myname,"/WS_data/archived_data/")
+#filepath of cr10 files
+cr10s <- "S:/WatershedScience/Stream_Program/00_Methods/03_Loggernet/WeirDataWorkflow/00_rawCR10_nonloggernet/"
+
+#read in all raw logger file names
+files <- list.files(c(dbfold,cr10s),ignore.case = T, full.names = T)
+prevrun <- list.files(raw_loggerdata,ignore.case = T, full.names = F)
+matching <- c(paste0(cr10s,prevrun),paste0(dbfold,prevrun))
+#only keep files that havent been previously processed
+files <- files[files %in% matching == F]
+
+#aquatrolls
+indices <- grepl("aquatroll", files, ignore.case = T)
+aqtr_files <- files[indices]
+
+#scan
+indices <- grepl("fingerprint", files, ignore.case = T)
+scan_files <- files[indices]
+
+#stage
+indices <- grepl("stage", files, ignore.case = T)
+stage_files <- files[indices]
+
+#CR10 stage
+indices <- grepl("CR10", files, ignore.case = T)
+CR10_files <- files[indices]
+```
+
+## Add the type of file you'd like to format first. Options include:
+
+-   Aquatroll Files (aqtr_files)
+-   Scan Files (scan_files) \# only 102
+-   PT Stage files (stage_files) \# only 101, 102 & 109
+-   CR10 Stage files (CR10_files)
+
+## And its associated name:
+
+-   Aquatroll Files ("Aquatroll")
+-   Scan Files ("Fingerprint")
+-   PT Stage files ("Stage")
+-   CR10 Stage files ("CR10Stage")
+
+```{r}
+filetype = stage_files
+filename = "Stage"
+```
+
+# Enter the file type and base file name!
+
+```{r}
+files <- filetype #aqtr_files or scan_files or stage_files or CR10_files
+file_cat <- filename #Stage, CR10Stage, Fingerprint, Aquatroll
+file.copy(files,raw_loggerdata)
+formatted <- "S:/WatershedScience/Stream_Program/00_Methods/03_Loggernet/WeirDataWorkflow/1_formatted/"
+```
+
+# 101
+
+```{r}
+WS_101 <- paste0(files[grepl("101", files)])
+WS_101 <- bind_rows(lapply(WS_101, format_head))%>% 
+                    mutate(SiteName = "W101") %>% 
+                    relocate(SiteName)%>%
+                    relocate(TIMESTAMP)
+startdate <- substr(as.character(min(WS_101$TIMESTAMP,na.rm=T)),1,10)
+stopdate <- substr(as.character(max(WS_101$TIMESTAMP,na.rm=T)),1,10)
+fwrite(WS_101, paste0(formatted,"WS_101_",file_cat ,"_",startdate,"_",stopdate,".csv"))
+```
+
+# 102
+
+```{r}
+WS_102 <- paste0(files[grepl("102", files)])
+WS_102 <- bind_rows(lapply(WS_102, format_head))%>% 
+  mutate(SiteName = "W102") %>% 
+  relocate(SiteName)%>%
+  relocate(TIMESTAMP)
+startdate <- substr(as.character(min(WS_102$TIMESTAMP,na.rm=T)),1,10)
+stopdate <- substr(as.character(max(WS_102$TIMESTAMP,na.rm=T)),1,10)
+fwrite(WS_102, paste0(formatted,"WS_102_",file_cat, "_", startdate,"_",stopdate,".csv"))
+```
+
+# 109
+
+```{r}
+WS_109 <- paste0(files[grepl("109", files)])
+WS_109 <- bind_rows(lapply(WS_109, format_head))%>% 
+  mutate(SiteName = "W109") %>% 
+  relocate(SiteName)%>%
+  relocate(TIMESTAMP)
+startdate <- substr(as.character(min(WS_109$TIMESTAMP,na.rm=T)),1,10)
+stopdate <- substr(as.character(max(WS_109$TIMESTAMP,na.rm=T)),1,10)
+fwrite(WS_109, paste0(formatted,"WS_109_",file_cat,"_",startdate,"_",stopdate,".csv"))
+```
+
+# 110
+
+```{r}
+WS_110 <- paste0(files[grepl("110", files)])
+WS_110 <- bind_rows(lapply(WS_110, format_head))%>% 
+  mutate(SiteName = "W110") %>% 
+  relocate(SiteName)%>%
+  relocate(TIMESTAMP)
+startdate <- substr(as.character(min(WS_110$TIMESTAMP,na.rm=T)),1,10)
+stopdate <- substr(as.character(max(WS_110$TIMESTAMP,na.rm=T)),1,10)
+fwrite(WS_110, paste0(formatted,"WS_110_",file_cat,"_",startdate,"_",stopdate,".csv"))
+```
