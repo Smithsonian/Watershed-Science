@@ -12,9 +12,15 @@ git init
 
 git pull origin main
 
+pause
+
 "C:\Program Files\R\R-4.5.0\bin\Rscript.exe" "C:\Users\LaGorgaL.S\Documents\Watershed-Science\daily_checks\renderweeklycheck.R" --pandoc="C:/Program Files (x86)/pandoc-3.7.0.1"
 
+pause
+
 git add "C:\Users\LaGorgaL.S\Documents\Watershed-Science\daily_checks\anything_WEIRd.html"
+
+pause
 
 git commit -am "auto update"
 
