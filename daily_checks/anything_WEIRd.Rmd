@@ -21,6 +21,7 @@ library(dplyr)
 library(purrr)
 library(ggplot2)
 library(rlist)
+
 #define functions
 format_head <- function(file) {
   # Read the file, skipping the first 4 rows (device info, headers, units, blank row)
@@ -31,12 +32,12 @@ format_head <- function(file) {
 }
 
 #set wd
-wd = "S:/WatershedScience/Stream_Program/00_Methods/03_Loggernet/WeirDataWorkflow" # workflow folder on  sdrive
+wd = "C:\Users\LaGorgaL.S\Documents\Watershed-Science\daily_checks" 
 setwd(wd)
 ```
 
 ```{r read, combine, and format .dat files for plotting, include = F, warning = FALSE, message=FALSE}
-dbfold <- "C:/Users/lagorgal/Smithsonian Dropbox/Lydia LaGorga/WS_data/current_data/"
+dbfold <- "C:\Campbellsci\LoggerNet\WS_Loggerfiles"
 files <- list.files(dbfold,ignore.case = T, pattern = "aquatroll")
 bindlist <- list()
 timerange <- days(7)
@@ -279,9 +280,10 @@ get(plotnames[18])
 get(plotnames[19])
 get(plotnames[20])
 get(plotnames[21])
+
 #stage
 plot(level)
- plot(stage)
+plot(stage)
  
 #scan200
 scan250
