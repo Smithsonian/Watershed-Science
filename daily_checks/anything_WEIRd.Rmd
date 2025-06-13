@@ -70,13 +70,13 @@ bind109 <- bind_rows(lapply(WS_109, format_head))%>% mutate(SiteName = "W109") %
 bindlist <- list.append(bindlist,bind109)
 }
 
-#110
-if(sum(grepl("110", files))){
-WS_110 <- paste0(dbfold,files[grepl("110", files)])
-bind110 <- bind_rows(lapply(WS_110, format_head))%>% mutate(SiteName = "W110") %>%
+#1017
+if(sum(grepl("1017", files))){
+WS_1017 <- paste0(dbfold,files[grepl("1017", files)])
+bind1017 <- bind_rows(lapply(WS_1017, format_head))%>% mutate(SiteName = "W1017") %>%
   relocate(SiteName)%>%
   filter(TIMESTAMP>= now("EST")-timerange)
-bindlist <- list.append(bindlist,bind110)
+bindlist <- list.append(bindlist,bind1017)
 }
 
 #combine
@@ -216,6 +216,17 @@ bind109 <- fread(WS_109,skip=1, header = TRUE)[-c(1,2)] %>%
   filter(TIMESTAMP>= now("EST")-timerange)
 bindlist <- list.append(bindlist,bind109)
 }
+
+#1017
+if(sum(grepl("1017", files))){
+WS_1017 <- paste0(dbfold,files[grepl("1017", files)]) 
+bind1017 <- fread(WS_1017,skip=1, header = TRUE)[-c(1,2)] %>% 
+  mutate(SiteName = "W1017") %>% 
+  relocate(SiteName) %>%
+  filter(TIMESTAMP>= now("EST")-timerange)
+bindlist <- list.append(bindlist,bind1017)
+}
+
 
 #combine
 all_weirs <- reduce(bindlist, full_join)
