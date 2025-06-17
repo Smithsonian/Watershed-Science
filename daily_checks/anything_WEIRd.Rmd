@@ -32,12 +32,12 @@ format_head <- function(file) {
 }
 
 #set wd
-wd = "C:/Users/lagorgal/Downloads" 
+wd =  "C:/Users/LaGorgaL.S/Documents/Watershed-Science/daily_checks/"
 setwd(wd)
 ```
 
 ```{r read, combine, and format .dat files for plotting, include = F, warning = FALSE, message=FALSE}
-dbfold <- "C:/Users/lagorgal/Smithsonian Dropbox/Lydia LaGorga/WS_data/current_data/"
+dbfold <- "C:/Campbellsci/LoggerNet/WS_Loggerfiles/"
 files <- list.files(dbfold,ignore.case = T, pattern = "aquatroll")
 bindlist <- list()
 timerange <- days(7)
