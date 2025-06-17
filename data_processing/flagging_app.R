@@ -93,8 +93,18 @@ server <- function(input, output, session) {
       title = "Edit File Defaults",
       h5("Provide some info before uploading your file!"),
       numericInput("timestamp_column", "Timestamp Column Index:", 1, min = 1),
-      numericInput("sitename_column", "Site Name Column Index:", 2, min = 1),
-      selectInput("timeformat", "Timestamp Format (strptime):", 
+      selectInput("nositename", "Contain SiteName?",
+                  c(yes = "yes", no = "no")
+      ),
+      conditionalPanel(
+        condition = "input.nositename == 'no'",
+        textInput("sitename", "Site Name:")),
+        
+        conditionalPanel(
+          condition = "input.nositename == 'yes'",
+      numericInput("sitename_column", "Site Name Column Index:", 2, min = 1)),
+      
+        selectInput("timeformat", "Timestamp Format (strptime):", 
                   choices = c("%Y-%m-%d %H:%M:%S", "%m/%d/%Y  %H:%M", "%m/%d/%Y  %H:%M:%S %p")),
       h5("Enter values to determine outliers!"),
       p("If you want an aggressive smooth, increase the rolling average window & decrease the standard deviation cut-off."),
@@ -109,7 +119,7 @@ server <- function(input, output, session) {
   
   #store inputs
   observeEvent(input$confirm_defaults, {
-    req(input$timestamp_column, input$sitename_column, input$timeformat, input$window, input$sds) 
+    req(input$timestamp_column, input$timeformat, input$window, input$sds) 
     values$timestamp_column <- input$timestamp_column
     values$sitename_column <- input$sitename_column
     values$timeformat <- input$timeformat
@@ -123,18 +133,31 @@ server <- function(input, output, session) {
   observeEvent(input$file, {
     req(input$file)
     values$ranges_applied <- FALSE
+    browser()
     timestamp_column <- values$timestamp_column
-    sitename_column <- values$sitename_column
+    if(input$nositename == "yes"){
+      sitename_column <- values$sitename_column
+    }
     timeformat <- values$timeformat
     #set view to the range selectors
     updateTabsetPanel(session, "tabs", selected = "ranges")
     # read and format data (should probably add a modal/popup for if a file isn't formatted correctly or just edit so you can select your timestamp columns + add a site name)
     df <- unique(fread(input$file$datapath))
     colnames(df)[timestamp_column] <- "TIMESTAMP"
-    colnames(df)[sitename_column] <- "SiteName"
+    
+    if(input$nositename == "yes"){
+      colnames(df)[sitename_column] <- "SiteName"
     df <- df %>%
       relocate(SiteName)%>%
       relocate(TIMESTAMP)
+    
+    }else{
+   df <- df %>%
+      mutate(SiteName = input$sitename)%>%
+      relocate(SiteName)%>%
+      relocate(TIMESTAMP) 
+    }
+    
 
     df$TIMESTAMP <- as.POSIXct(df$TIMESTAMP, format = timeformat) #add more try formats so this is less likely to tweak
     df$RowID <- seq.int(nrow(df))
