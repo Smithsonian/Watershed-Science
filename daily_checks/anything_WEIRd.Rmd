@@ -32,12 +32,12 @@ format_head <- function(file) {
 }
 
 #set wd
-wd = "C:/Users/LaGorgaL.S/Documents/Watershed-Science/daily_checks/" 
+wd = "C:/Users/lagorgal/Downloads" 
 setwd(wd)
 ```
 
 ```{r read, combine, and format .dat files for plotting, include = F, warning = FALSE, message=FALSE}
-dbfold <- "C:/Campbellsci/LoggerNet/WS_Loggerfiles/"
+dbfold <- "C:/Users/lagorgal/Smithsonian Dropbox/Lydia LaGorga/WS_data/current_data/"
 files <- list.files(dbfold,ignore.case = T, pattern = "aquatroll")
 bindlist <- list()
 timerange <- days(7)
@@ -183,13 +183,13 @@ scan400 <- weeklyfp %>%
 ```
 
 ``` {r stage!, echo = F, warning = F, message=FALSE}
-files <- list.files(dbfold,ignore.case = F, pattern = "Stage")[c(-3)]
+files <- list.files(dbfold,ignore.case = F, pattern = "Stage")[c(-4)]
 bindlist <- list()
 timerange <- days(7)
 #files by site
 #101
-if(sum(grepl("101", files))){
-WS_101 <- paste0(dbfold,files[grepl("101", files)]) 
+if(sum(grepl("101_", files))){
+WS_101 <- paste0(dbfold,files[grepl("101_", files)]) 
 bind101 <- fread(WS_101,skip=1, header = TRUE)[-c(1,2)] %>% 
   mutate(SiteName = "W101") %>% 
   relocate(SiteName) %>%
