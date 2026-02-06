@@ -107,7 +107,8 @@ for (i in 4:(length(plotnames))){
     geom_hline(yintercept = 0, size = .5)+
     geom_point(aes(x = TIMESTAMP, y = .data[[names(temp)[3]]], color=SiteName), na.rm = TRUE) +
     facet_wrap(vars(SiteName), scales = "free")+
-    ylim(min(temp[,3], na.rm = TRUE) - 5, max(temp[,3], na.rm = TRUE) + 5) +
+    ylim(ifelse(min(temp[,3], na.rm = TRUE)<=-900000, -5, min(temp[,3], na.rm = TRUE)- 5), 
+		max(temp[,3], na.rm = TRUE) + 5) +
     ggtitle(names(temp)[3]) +
     theme(legend.title = element_text(size=20)) + 
     labs(x = "Timestamp", y = params[i]) +
@@ -241,7 +242,7 @@ stage <- all_weirs %>%
     ggplot() +
     geom_hline(yintercept = 0, size = .5)+
     geom_point(aes(x = TIMESTAMP, y = Flow, color=SiteName), na.rm = TRUE) +
-    facet_wrap(vars(SiteName), scales = "free")+
+    facet_wrap(vars(SiteName))+
      ggtitle("Flow (cf/s)") +
     theme(legend.title = element_text(size=20)) + 
     labs(x = "Timestamp", y = "Flow") +
