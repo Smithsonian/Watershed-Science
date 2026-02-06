@@ -108,8 +108,8 @@ for (i in 4:(length(plotnames))){
     geom_point(aes(x = TIMESTAMP, y = .data[[names(temp)[3]]], color=SiteName), na.rm = TRUE) +
     facet_wrap(vars(SiteName))+
    # ylim(min(temp[,3], na.rm = TRUE)- 5), max(temp[,3], na.rm = TRUE) + 5)) +
-    ylim(min(temp[,3][!temp[,3] %in% c(-99999)], na.rm = TRUE)- 5), max(temp[,3][!temp[,3] %in% c(99999)] , na.rm = TRUE) + 5))+
-    ggtitle(names(temp)[3]) +
+    ylim(min(temp[,3][!temp[,3] %in% c(-99999)], na.rm = TRUE) - 5, max(temp[,3][!temp[,3] %in% c(99999)] , na.rm = TRUE) + 5)+
+     ggtitle(names(temp)[3]) +
     theme(legend.title = element_text(size=20)) + 
     labs(x = "Timestamp", y = params[i]) +
     theme_light() +
