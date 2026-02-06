@@ -185,7 +185,8 @@ scan400 <- weeklyfp %>%
 ```
 
 ``` {r stage!, echo = F, warning = F, message=FALSE}
-files <- list.files(dbfold,ignore.case = F, pattern = "Stage")[c(-4)]
+files <- list.files(dbfold,ignore.case = F, pattern = "Stage")
+files <- files[!grepl(files, pattern = "Samples")]
 bindlist <- list()
 timerange <- days(7)
 #files by site
