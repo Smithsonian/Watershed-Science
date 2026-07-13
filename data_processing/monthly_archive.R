@@ -84,7 +84,7 @@ write_monthly_data_weirs <- function(dt, rawCSVData_dir, filename) {
     #define a name for this monthly file
     file_path <- paste0(rawCSVData_dir,filename,"/",filename,"_",m,".csv")
     
-    #This is here just in case this is a brand new table. Might move to the automated steps script. Makes a folder for this table in the rawCSV folder for neatness. 
+    #This is here just in case this is a brand new table. Makes a folder for this table in the rawCSV folder for neatness. 
     if (!dir.exists(paste0(rawCSVData_dir,filename,"/"))){
       dir.create(paste0(rawCSVData_dir,filename,"/"), recursive = TRUE)
     }
