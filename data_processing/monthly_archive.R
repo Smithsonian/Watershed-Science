@@ -11,6 +11,7 @@ library(data.table)
 rawData_dir <- Sys.getenv("weirs_unprocessed_archive") 
 rawDataArchive_dir <- Sys.getenv("weirs_processed_archive")
 rawCSVData_dir <- Sys.getenv("weirs_csv") 
+archive_dat_as_csv <- Sys.getenv("weirs_dat_to_csv") 
 
 #list files in the raw data folder to be converted. 
 files <- list.files(rawData_dir, full.names = T)%>%
@@ -21,7 +22,9 @@ for (file in files){
   
   #Load the .DAT file into R with this special function (from Ben Bond-Lamberty)--------------------------------------------------------------------------- 
   dt <- read_datalogger_file_weirs(file)
-
+  #write reformatted .dat as .csv
+  fwrite(dt,paste0(archive_dat_as_csv,basename(file),".csv")
+ 
   #Make sure timestamps are stored properly
   dt$TIMESTAMP <- ifelse(nchar(dt$TIMESTAMP) == 10, paste0(dt$TIMESTAMP, " 00:00:00"), dt$TIMESTAMP)
   dt$TIMESTAMP <- as.character(format(as.POSIXct(dt$TIMESTAMP, format = "%Y-%m-%d %H:%M:%S"), format = "%Y-%m-%d %H:%M:%S"))
