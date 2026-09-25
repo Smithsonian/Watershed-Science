@@ -5,42 +5,7 @@
 library(tidyverse)
 library(data.table)
 
-#Load functions, directories, and unprocessed file names-------------------------------------------------------------
-
-#relevant directories
-rawData_dir <- Sys.getenv("weirs_unprocessed_archive") 
-rawDataArchive_dir <- Sys.getenv("weirs_processed_archive")
-rawCSVData_dir <- Sys.getenv("weirs_csv") 
-archive_dat_as_csv <- Sys.getenv("weirs_dat_to_csv") 
-
-#list files in the raw data folder to be converted. 
-files <- list.files(rawData_dir, full.names = T)%>%
-  str_subset(pattern = 'backup',negate = TRUE) #We are not processing backup tables
-
-#Processing occurs one file at a time
-for (file in files){
-  
-  #Load the .DAT file into R with this special function (from Ben Bond-Lamberty)--------------------------------------------------------------------------- 
-  dt <- read_datalogger_file_weirs(file)
-  #write reformatted .dat as .csv
-  fwrite(dt,paste0(archive_dat_as_csv,basename(file),".csv")
- 
-  #Make sure timestamps are stored properly
-  dt$TIMESTAMP <- ifelse(nchar(dt$TIMESTAMP) == 10, paste0(dt$TIMESTAMP, " 00:00:00"), dt$TIMESTAMP)
-  dt$TIMESTAMP <- as.character(format(as.POSIXct(dt$TIMESTAMP, format = "%Y-%m-%d %H:%M:%S"), format = "%Y-%m-%d %H:%M:%S"))
-  
-  tablename <- substr(basename(file),1,(nchar(basename(file))-19)) 
-  
-  
-  #Aggregate the data into monthly chunks and write them out to the correct place---------------------------------------------------------------------------
-  write_monthly_data_weirs(dt, rawCSVData_dir, tablename)
-  
-  
-  #Move the Raw Loggernet data file into the archive----------------------------------------------------------------------------------
-  file.rename(file, paste0(rawDataArchive_dir, basename(file)))
-  
-}
-
+#Load functions-------------------------------------------------------------------------------------
 ######################################
 #######(from Ben Bond-Lamberty)#######
 ######################################
@@ -51,29 +16,29 @@ read_datalogger_file_weirs <- function(filename, quiet = FALSE, ...) {
   dat <- read_lines(filename)
   header_split <- strsplit(dat[1], ",")[[1]]
   header_split <- gsub("\"", "", header_split) # remove quotation marks
-  format_name <- header_split[1] # first field of row 1
-  logger_name <- header_split[2] # second field of row 1
-  table_name <- header_split[length(header_split)]
-  
-  # We have no time zone information, so read the timestamp as character
-  if(length(list(...))) {
-    x <- read_csv(I(dat[-c(1, 3, 4)]), ...)
-  } else {
-    x <- read_csv(I(dat[-c(1, 3, 4)]), show_col_types = FALSE)%>%
-      #This ensures that ALL variables interpreted as timestamps are read in as characters. 
-      mutate(across(where(lubridate::is.POSIXt), as.character))
-  }
-  info <- tibble(Logger = rep(logger_name, nrow(x)),
-                 Table = rep(table_name, nrow(x)),
-                 Format = rep(format_name, nrow(x)))
-  as_tibble(cbind(info, x))
-  
+format_name <- header_split[1] # first field of row 1
+logger_name <- header_split[2] # second field of row 1
+table_name <- header_split[length(header_split)]
+
+# We have no time zone information, so read the timestamp as character
+if(length(list(...))) {
+  x <- read_csv(I(dat[-c(1, 3, 4)]), ...)
+} else {
+  x <- read_csv(I(dat[-c(1, 3, 4)]), show_col_types = FALSE)%>%
+    #This ensures that ALL variables interpreted as timestamps are read in as characters. 
+    mutate(across(where(lubridate::is.POSIXt), as.character))
+}
+info <- tibble(Logger = rep(logger_name, nrow(x)),
+               Table = rep(table_name, nrow(x)),
+               Format = rep(format_name, nrow(x)))
+as_tibble(cbind(info, x))
+
 }
 
 ############################################
 ###########(from Liz Westbrook)#############
 ############################################
-write_monthly_data_weirs <- function(dt, rawCSVData_dir, filename) {
+write_monthly_data_weirs <- function(dt, save_dir, filename) {
   
   dt$year_month <- substr(dt$TIMESTAMP,1,7)
   months <- unique(dt$year_month)
@@ -85,11 +50,11 @@ write_monthly_data_weirs <- function(dt, rawCSVData_dir, filename) {
       select(!year_month)#once this has been used for filtering, immediately get rid of it so it does not create an aggregation issue
     
     #define a name for this monthly file
-    file_path <- paste0(rawCSVData_dir,filename,"/",filename,"_",m,".csv")
+    file_path <- paste0(save_dir,filename,"/",filename,"_",m,".csv")
     
     #This is here just in case this is a brand new table. Makes a folder for this table in the rawCSV folder for neatness. 
-    if (!dir.exists(paste0(rawCSVData_dir,filename,"/"))){
-      dir.create(paste0(rawCSVData_dir,filename,"/"), recursive = TRUE)
+    if (!dir.exists(paste0(save_dir,filename,"/"))){
+      dir.create(paste0(save_dir,filename,"/"), recursive = TRUE)
     }
     
     #determine if any data for that month has already been processed. 
@@ -150,5 +115,44 @@ aggregate_data_weirs <- function(dt) {
   setcolorder(aggregated_data, intersect(original_order, names(aggregated_data)))
   
   return(aggregated_data)
+  
+}
+###########################################################################
+#relevant directories
+rawData_dir <- Sys.getenv("weirs_unprocessed_archive") #from server
+monthly_csv <- Sys.getenv("weirs_csv") #to Xdrive
+all_archive <- Sys.getenv("weirs_processed_archive")
+
+logger_archive = paste0(all_archive, "00_archive_processed/")
+csv_archive = paste0(all_archive, "01_dat_to_csv/")
+monthly_archive = paste0(all_archive, "02_monthly_archive/")
+###########################################################################
+
+#list files in the raw data folder to be converted. 
+files <- list.files(rawData_dir, full.names = T)%>%
+  str_subset(pattern = 'backup',negate = TRUE) #We are not processing backup tables
+
+#Processing occurs one file at a time
+for (file in files){
+
+  #Load the .DAT file into R with this special function (from Ben Bond-Lamberty)--------------------------------------------------------------------------- 
+  dt <- read_datalogger_file_weirs(file)
+  #write reformatted .dat as .csv
+  fwrite(dt,paste0(csv_archive,basename(file),".csv"))    
+ 
+  #Make sure timestamps are stored properly
+  dt$TIMESTAMP <- ifelse(nchar(dt$TIMESTAMP) == 10, paste0(dt$TIMESTAMP, " 00:00:00"), dt$TIMESTAMP)
+  dt$TIMESTAMP <- as.character(format(as.POSIXct(dt$TIMESTAMP, format = "%Y-%m-%d %H:%M:%S"), format = "%Y-%m-%d %H:%M:%S"))
+  
+  tablename <- substr(basename(file),1,(nchar(basename(file))-19)) 
+  
+  
+  #Aggregate the data into monthly chunks and write them out to the correct place---------------------------------------------------------------------------
+  write_monthly_data_weirs(dt, monthly_csv, tablename)
+  
+
+  
+  #Move the Raw Loggernet data file into the archive----------------------------------------------------------------------------------
+  file.rename(file, paste0(logger_archive, basename(file)))
   
 }
