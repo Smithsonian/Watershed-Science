@@ -69,7 +69,7 @@ write_monthly_data_weirs <- function(dt, save_dir, filename) {
       existing_data <- read.csv(file_path)
       
       #Combine the existing data and the new data -- could be more robust 
-      combined_data <- rbindlist(list(dt_m, existing_data), use.names=F)
+      combined_data <- rbindlist(list(dt_m, existing_data), use.names=T, fill = T)
       
       #run this function which handles the possibility of duplicate timestamps 
       aggregated_combined_data <- aggregate_data_weirs(combined_data)
