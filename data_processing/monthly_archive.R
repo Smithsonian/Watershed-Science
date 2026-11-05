@@ -1,9 +1,11 @@
 ###Step one -- Conversion of .DAT files to .CSV and aggregation into monthly or yearly chunks. 
 #This step is meant to be run as an automated pre-processing step before normalization.
 #It takes a while to run this on a lot of data because of the aggregation function. 
+#library(fs)
 
 library(tidyverse)
 library(data.table)
+
 
 #Load functions-------------------------------------------------------------------------------------
 ######################################
@@ -119,13 +121,11 @@ aggregate_data_weirs <- function(dt) {
 }
 ###########################################################################
 #relevant directories
-rawData_dir <- Sys.getenv("weirs_unprocessed_archive") #from server
-monthly_csv <- Sys.getenv("weirs_csv") #to Xdrive
-all_archive <- Sys.getenv("weirs_processed_archive")
+rawData_dir <- Sys.getenv("weirs_archive_unprocessed") #from server
+monthly_csv <- Sys.getenv("weirs_monthly_csv") #to Xdrive
+logger_archive = Sys.getenv("weirs_archive_raw")
+csv_archive= Sys.getenv("weirs_archive_rawtocsv")
 
-logger_archive = paste0(all_archive, "00_archive_processed/")
-csv_archive = paste0(all_archive, "01_dat_to_csv/")
-monthly_archive = paste0(all_archive, "02_monthly_archive/")
 ###########################################################################
 
 #list files in the raw data folder to be converted. 
@@ -138,7 +138,7 @@ for (file in files){
   #Load the .DAT file into R with this special function (from Ben Bond-Lamberty)--------------------------------------------------------------------------- 
   dt <- read_datalogger_file_weirs(file)
   #write reformatted .dat as .csv
-  fwrite(dt,paste0(csv_archive,basename(file),".csv"))    
+  fwrite(dt,paste0(csv_archive,fs::path_ext_remove(basename(file)),".csv"))    
  
   #Make sure timestamps are stored properly
   dt$TIMESTAMP <- ifelse(nchar(dt$TIMESTAMP) == 10, paste0(dt$TIMESTAMP, " 00:00:00"), dt$TIMESTAMP)
